@@ -113,6 +113,13 @@ async function createFileStructureInConfluence(
 		lastUpdatedBy = pageDetails.lastUpdatedBy;
 		contentType = pageDetails.contentType;
 	} else {
+		if (isMarkdownBackedFile(node.file)) {
+			await adaptor.updateMarkdownValues(node.file.absoluteFilePath, {
+				publish: true,
+				pageId: parentPageId,
+			});
+		}
+
 		version = 0;
 		adfContent = doc(p());
 		pageTitle = "";
@@ -148,6 +155,10 @@ async function createFileStructureInConfluence(
 			contentType,
 		},
 	};
+}
+
+function isMarkdownBackedFile(file: LocalAdfFile): boolean {
+	return file.absoluteFilePath.toLowerCase().endsWith(".md");
 }
 
 async function ensurePageExists(
