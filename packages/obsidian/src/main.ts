@@ -24,6 +24,7 @@ import { ObsidianPlatformLive } from "./effects/ObsidianPlatform";
 import type { Mermaid } from "mermaid";
 
 export interface ObsidianPluginSettings extends ConfluenceUploadSettings.ConfluenceSettings {
+	showPublishResultsModal: boolean;
 	mermaidTheme:
 		| "match-obsidian"
 		| "light-obsidian"
@@ -219,27 +220,9 @@ export default class ConfluencePlugin extends Plugin {
 			this.isSyncing = true;
 			try {
 				const stats = await this.doPublish();
-				new CompletedModal(this.app, {
-					uploadResults: stats,
-				}).open();
+				this.showPublishResults(stats);
 			} catch (error) {
-				if (error instanceof Error) {
-					new CompletedModal(this.app, {
-						uploadResults: {
-							errorMessage: error.message,
-							failedFiles: [],
-							filesUploadResult: [],
-						},
-					}).open();
-				} else {
-					new CompletedModal(this.app, {
-						uploadResults: {
-							errorMessage: JSON.stringify(error),
-							failedFiles: [],
-							filesUploadResult: [],
-						},
-					}).open();
-				}
+				this.showPublishError(error);
 			} finally {
 				this.isSyncing = false;
 			}
@@ -284,28 +267,10 @@ export default class ConfluencePlugin extends Plugin {
 						this.isSyncing = true;
 						this.doPublish(this.activeLeafPath(this.workspace))
 							.then((stats) => {
-								new CompletedModal(this.app, {
-									uploadResults: stats,
-								}).open();
+								this.showPublishResults(stats);
 							})
 							.catch((error) => {
-								if (error instanceof Error) {
-									new CompletedModal(this.app, {
-										uploadResults: {
-											errorMessage: error.message,
-											failedFiles: [],
-											filesUploadResult: [],
-										},
-									}).open();
-								} else {
-									new CompletedModal(this.app, {
-										uploadResults: {
-											errorMessage: JSON.stringify(error),
-											failedFiles: [],
-											filesUploadResult: [],
-										},
-									}).open();
-								}
+								this.showPublishError(error);
 							})
 							.finally(() => {
 								this.isSyncing = false;
@@ -326,28 +291,10 @@ export default class ConfluencePlugin extends Plugin {
 						this.isSyncing = true;
 						this.doPublish()
 							.then((stats) => {
-								new CompletedModal(this.app, {
-									uploadResults: stats,
-								}).open();
+								this.showPublishResults(stats);
 							})
 							.catch((error) => {
-								if (error instanceof Error) {
-									new CompletedModal(this.app, {
-										uploadResults: {
-											errorMessage: error.message,
-											failedFiles: [],
-											filesUploadResult: [],
-										},
-									}).open();
-								} else {
-									new CompletedModal(this.app, {
-										uploadResults: {
-											errorMessage: JSON.stringify(error),
-											failedFiles: [],
-											filesUploadResult: [],
-										},
-									}).open();
-								}
+								this.showPublishError(error);
 							})
 							.finally(() => {
 								this.isSyncing = false;
@@ -472,7 +419,7 @@ export default class ConfluencePlugin extends Plugin {
 		this.settings = Object.assign(
 			{},
 			ConfluenceUploadSettings.DEFAULT_SETTINGS,
-			{ mermaidTheme: "match-obsidian" },
+			{ mermaidTheme: "match-obsidian", showPublishResultsModal: true },
 			await this.loadData(),
 		);
 	}
@@ -494,6 +441,25 @@ export default class ConfluencePlugin extends Plugin {
 			),
 		);
 	}
+
+	private showPublishError(error: unknown) {
+		this.showPublishResults({
+			errorMessage: toError(error).message,
+			failedFiles: [],
+			filesUploadResult: [],
+		});
+	}
+
+	private showPublishResults(uploadResults: UploadResults) {
+		if (this.settings.showPublishResultsModal) {
+			new CompletedModal(this.app, {
+				uploadResults,
+			}).open();
+			return;
+		}
+
+		new Notice(getPublishResultsMessage(uploadResults), 10000);
+	}
 }
 
 function toError(error: unknown): Error {
@@ -502,4 +468,16 @@ function toError(error: unknown): Error {
 	}
 
 	return new Error(typeof error === "string" ? error : JSON.stringify(error));
+}
+
+function getPublishResultsMessage(uploadResults: UploadResults): string {
+	if (uploadResults.errorMessage) {
+		return `Confluence publish failed: ${uploadResults.errorMessage}`;
+	}
+
+	if (uploadResults.failedFiles.length > 0) {
+		return `Confluence publish finished: ${uploadResults.filesUploadResult.length} succeeded, ${uploadResults.failedFiles.length} failed.`;
+	}
+
+	return `Confluence publish finished: ${uploadResults.filesUploadResult.length} file(s) processed.`;
 }
