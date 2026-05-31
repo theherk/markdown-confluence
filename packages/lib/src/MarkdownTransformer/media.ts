@@ -3,6 +3,7 @@ export type Token = {
 	type: string;
 	content: string;
 	level: number;
+	nesting: number;
 	tag: string;
 	attrs?: string[][];
 	children?: unknown[];
@@ -22,7 +23,14 @@ export interface MdState {
 function createRule() {
 	const regx = /!\[[^\]]*\]\([^)]+\)|!\[[^\]]*\]\[[^\]]*]|!\[\[.*\..*]]/g;
 	const referenceImageRegex = /^!\[(?<alt>[^\]]*)]\[(?<label>[^\]]*)]$/;
-	const validParentTokens = ["th_open", "td_open", "list_item_open"];
+	const validParentTokens = [
+		"blockquote_open",
+		"expand_open",
+		"panel_open",
+		"th_open",
+		"td_open",
+		"list_item_open",
+	];
 
 	/**
 	 * This function looks for strings that matches ![description](url) inside Inline-tokens.
@@ -151,21 +159,16 @@ function createRule() {
 					let previousToken = arr[cursor];
 					let subTree: Token[] = [];
 
-					while (
-						previousToken &&
-						previousToken.level > 0 &&
-						validParentTokens.indexOf(previousToken.type) === -1
-					) {
+					while (previousToken && previousToken.nesting === 1) {
+						if (validParentTokens.indexOf(previousToken.type) !== -1) {
+							break;
+						}
+
 						openingTokens.unshift(previousToken);
 						cursor--;
 						previousToken = arr[cursor];
 					}
-
-					if (previousToken && validParentTokens.indexOf(previousToken.type) === -1) {
-						openingTokens.unshift(previousToken);
-					} else {
-						cursor++;
-					}
+					cursor++;
 
 					const closingTokens = openingTokens
 						.map(
