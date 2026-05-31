@@ -96,6 +96,18 @@ export class ConfluenceSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Show Publish Results Dialog")
+			.setDesc("Show a dialog after publishing finishes")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showPublishResultsModal)
+					.onChange(async (value) => {
+						this.plugin.settings.showPublishResultsModal = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
 			.setName("Mermaid Diagram Theme")
 			.setDesc("Pick the theme to apply to mermaid diagrams")
 			.addDropdown((dropdown) => {
