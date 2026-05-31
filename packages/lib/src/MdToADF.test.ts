@@ -258,3 +258,37 @@ test.each(markdownTestCases)("parses $fileName", (markdown: MarkdownFile) => {
 	const adfFile = convertMDtoADF(markdown, settings);
 	expect(adfFile).toMatchSnapshot();
 });
+
+test("parses callout with adjacent wikilink image", () => {
+	const markdown: MarkdownFile = {
+		folderName: "callouts",
+		absoluteFilePath: "/path/to/callouts.md",
+		fileName: "callouts.md",
+		contents: [
+			"> [!info] Title",
+			"> Request the following three groups, so three separate requests:",
+			"> \t`group1`",
+			"> \t`group2`",
+			"> \t`group3`",
+			"> ",
+			"> [Request Ticket](https://somelink.internal/123)",
+			"> ![[Pasted image 20231006155212.png|400]]",
+		].join("\n"),
+		pageTitle: "Callouts",
+		frontmatter: {},
+	};
+	const settings: ConfluenceSettings = {
+		confluenceBaseUrl: "https://example.com",
+		confluenceParentId: "asdf",
+		atlassianUserName: "asdf@asdf.com",
+		atlassianApiToken: "asdfasdf",
+		folderToPublish: ".",
+		contentRoot: "./",
+		firstHeadingPageTitle: false,
+	};
+
+	const adfFile = convertMDtoADF(markdown, settings);
+
+	expect(adfFile.contents.content?.[0]?.type).toBe("panel");
+	expect(JSON.stringify(adfFile.contents)).toContain("file://Pasted image 20231006155212.png");
+});
