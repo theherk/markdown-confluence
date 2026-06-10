@@ -5,6 +5,14 @@ import { Effect, Layer } from "effect";
 import { defineConfig, type Plugin } from "vite-plus";
 import { generatedBanner, isNodeBuiltin } from "../../vite.package-build.ts";
 
+// The CLI is bundled as ESM but pulls in CommonJS dependencies (for example
+// `mime-types`) that call `require(...)` for Node built-ins at runtime.
+// ESM modules have no `require` in scope, so rolldown's CJS interop shim throws.
+// Provide a real `require` via `createRequire` so those calls resolve natively.
+const cliBanner = `${generatedBanner}import { createRequire as __createRequire } from "node:module";
+const require = __createRequire(import.meta.url);
+`;
+
 const NodePlatformLive = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 
 function runNodePlatform<A>(effect: Effect.Effect<A, unknown, FileSystem | Path>) {
@@ -45,7 +53,7 @@ export default defineConfig({
 		rollupOptions: {
 			external: isNodeBuiltin,
 			output: {
-				banner: generatedBanner,
+				banner: cliBanner,
 				codeSplitting: false,
 			},
 		},
