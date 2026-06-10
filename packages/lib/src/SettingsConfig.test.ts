@@ -85,9 +85,13 @@ test("loads settings from Effect ConfigProviders with CLI, env, file, default pr
 
 	expect(settings).toEqual({
 		confluenceBaseUrl: "https://env.example.atlassian.net",
+		confluenceSiteUrl: "",
 		confluenceParentId: "cli-parent",
+		authMethod: "basic",
 		atlassianUserName: "env-user@example.com",
 		atlassianApiToken: "cli-token",
+		atlassianClientId: "",
+		atlassianClientSecret: "",
 		folderToPublish: "env-folder",
 		contentRoot: expectedCliContentRoot,
 		firstHeadingPageTitle: true,
@@ -168,6 +172,146 @@ test("parses boolean CLI values passed as separate arguments", async () => {
 
 	expect(settings.firstHeadingPageTitle).toBe(false);
 	expect(settings.contentRoot).toBe(expectedContentRoot);
+});
+
+test("loads OAuth client-credentials settings and leaves basic credentials optional", async () => {
+	const settings = await runEffect(
+		parseConfluenceSettingsEffect(
+			ConfigProvider.fromUnknown({
+				confluenceBaseUrl: "https://api.atlassian.com/ex/confluence/cloud-id",
+				confluenceSiteUrl: "https://site.example.atlassian.net",
+				confluenceParentId: "parent",
+				authMethod: "oauth2",
+				atlassianClientId: "client-id",
+				atlassianClientSecret: "client-secret",
+				folderToPublish: "docs",
+				contentRoot: "docs",
+				firstHeadingPageTitle: false,
+			}),
+		),
+	);
+
+	expect(settings.authMethod).toBe("oauth2");
+	expect(settings.atlassianClientId).toBe("client-id");
+	expect(settings.atlassianClientSecret).toBe("client-secret");
+	expect(settings.confluenceSiteUrl).toBe("https://site.example.atlassian.net");
+	expect(settings.atlassianUserName).toBe("");
+	expect(settings.atlassianApiToken).toBe("");
+});
+
+test("defaults authMethod to basic and confluenceSiteUrl to empty string", async () => {
+	const settings = await runEffect(
+		parseConfluenceSettingsEffect(
+			ConfigProvider.fromUnknown({
+				confluenceBaseUrl: "https://site.example.atlassian.net",
+				confluenceParentId: "parent",
+				atlassianUserName: "user@example.com",
+				atlassianApiToken: "token",
+				folderToPublish: "docs",
+				contentRoot: "docs",
+				firstHeadingPageTitle: false,
+			}),
+		),
+	);
+
+	expect(settings.authMethod).toBe("basic");
+	expect(settings.confluenceSiteUrl).toBe("");
+});
+
+test("fails when basic auth is missing the API token", async () => {
+	await expect(
+		runEffect(
+			parseConfluenceSettingsEffect(
+				ConfigProvider.fromUnknown({
+					confluenceBaseUrl: "https://site.example.atlassian.net",
+					confluenceParentId: "parent",
+					authMethod: "basic",
+					atlassianUserName: "user@example.com",
+					folderToPublish: "docs",
+					contentRoot: "docs",
+					firstHeadingPageTitle: false,
+				}),
+			),
+		),
+	).rejects.toThrow(/Atlassian API token is required when authMethod is basic/);
+});
+
+test("fails when oauth2 auth is missing the client secret", async () => {
+	await expect(
+		runEffect(
+			parseConfluenceSettingsEffect(
+				ConfigProvider.fromUnknown({
+					confluenceBaseUrl: "https://api.atlassian.com/ex/confluence/cloud-id",
+					confluenceParentId: "parent",
+					authMethod: "oauth2",
+					atlassianClientId: "client-id",
+					folderToPublish: "docs",
+					contentRoot: "docs",
+					firstHeadingPageTitle: false,
+				}),
+			),
+		),
+	).rejects.toThrow(/Atlassian client secret is required when authMethod is oauth2/);
+});
+
+test("requires confluenceSiteUrl when confluenceBaseUrl is the Atlassian API gateway", async () => {
+	await expect(
+		runEffect(
+			parseConfluenceSettingsEffect(
+				ConfigProvider.fromUnknown({
+					confluenceBaseUrl: "https://api.atlassian.com/ex/confluence/cloud-id",
+					confluenceParentId: "parent",
+					authMethod: "oauth2",
+					atlassianClientId: "client-id",
+					atlassianClientSecret: "client-secret",
+					folderToPublish: "docs",
+					contentRoot: "docs",
+					firstHeadingPageTitle: false,
+				}),
+			),
+		),
+	).rejects.toThrow(
+		/Confluence site URL is required when confluenceBaseUrl points at the Atlassian API gateway/,
+	);
+});
+
+test("accepts the Atlassian API gateway base URL when confluenceSiteUrl is provided", async () => {
+	const settings = await runEffect(
+		parseConfluenceSettingsEffect(
+			ConfigProvider.fromUnknown({
+				confluenceBaseUrl: "https://api.atlassian.com/ex/confluence/cloud-id",
+				confluenceSiteUrl: "https://site.example.atlassian.net",
+				confluenceParentId: "parent",
+				authMethod: "oauth2",
+				atlassianClientId: "client-id",
+				atlassianClientSecret: "client-secret",
+				folderToPublish: "docs",
+				contentRoot: "docs",
+				firstHeadingPageTitle: false,
+			}),
+		),
+	);
+
+	expect(settings.confluenceSiteUrl).toBe("https://site.example.atlassian.net");
+});
+
+test("rejects an unsupported authMethod value", async () => {
+	await expect(
+		runEffect(
+			parseConfluenceSettingsEffect(
+				ConfigProvider.fromUnknown({
+					confluenceBaseUrl: "https://site.example.atlassian.net",
+					confluenceParentId: "parent",
+					authMethod: "saml",
+					atlassianUserName: "user@example.com",
+					atlassianApiToken: "token",
+					folderToPublish: "docs",
+					contentRoot: "docs",
+					firstHeadingPageTitle: false,
+				}),
+			),
+		),
+	).rejects.toThrow(/Unsupported authMethod "saml"/);
 });
 
 function makeRuntimeEnvironment({

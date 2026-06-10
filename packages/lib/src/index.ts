@@ -35,6 +35,11 @@ import {
 } from "./MarkdownWorkspace";
 import { convertMDtoADF, parseMarkdownToADF, stripMarkdownHtmlComments } from "./MdToADF";
 import {
+	ATLASSIAN_OAUTH_AUDIENCE,
+	ATLASSIAN_OAUTH_TOKEN_URL,
+	fetchOAuthAccessToken,
+} from "./OAuthToken";
+import {
 	Publisher,
 	type ConfluenceAdfFile,
 	type ConfluenceNode,
@@ -54,6 +59,8 @@ import {
 
 export {
 	AlwaysADFProcessingPlugins,
+	ATLASSIAN_OAUTH_AUDIENCE,
+	ATLASSIAN_OAUTH_TOKEN_URL,
 	ConfluencePageConfig,
 	ConfluenceSettingsLive,
 	ConfluenceUploadSettings,
@@ -70,6 +77,7 @@ export {
 	createPublisherFunctions,
 	executeADFProcessingPipeline,
 	executeADFProcessingPipelineEffect,
+	fetchOAuthAccessToken,
 	getMermaidFileName,
 	loadConfluenceSettings,
 	loadConfluenceSettingsEffect,

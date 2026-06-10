@@ -248,9 +248,13 @@ const markdownTestCases: MarkdownFile[] = [
 test.each(markdownTestCases)("parses $fileName", (markdown: MarkdownFile) => {
 	const settings: ConfluenceSettings = {
 		confluenceBaseUrl: "https://example.com",
+		confluenceSiteUrl: "",
 		confluenceParentId: "asdf",
+		authMethod: "basic",
 		atlassianUserName: "asdf@asdf.com",
 		atlassianApiToken: "asdfasdf",
+		atlassianClientId: "",
+		atlassianClientSecret: "",
 		folderToPublish: ".",
 		contentRoot: "./",
 		firstHeadingPageTitle: false,
@@ -279,9 +283,13 @@ test("parses callout with adjacent wikilink image", () => {
 	};
 	const settings: ConfluenceSettings = {
 		confluenceBaseUrl: "https://example.com",
+		confluenceSiteUrl: "",
 		confluenceParentId: "asdf",
+		authMethod: "basic",
 		atlassianUserName: "asdf@asdf.com",
 		atlassianApiToken: "asdfasdf",
+		atlassianClientId: "",
+		atlassianClientSecret: "",
 		folderToPublish: ".",
 		contentRoot: "./",
 		firstHeadingPageTitle: false,
@@ -291,4 +299,70 @@ test("parses callout with adjacent wikilink image", () => {
 
 	expect(adfFile.contents.content?.[0]?.type).toBe("panel");
 	expect(JSON.stringify(adfFile.contents)).toContain("file://Pasted image 20231006155212.png");
+});
+
+test("matches bare Confluence links against confluenceSiteUrl, not the API gateway base", () => {
+	const pageLink =
+		"https://site.example.atlassian.net/wiki/spaces/TEAM/pages/12345/Some+Page+Title";
+	const markdown: MarkdownFile = {
+		folderName: "links",
+		absoluteFilePath: "/path/to/links.md",
+		fileName: "links.md",
+		contents: pageLink,
+		pageTitle: "Links",
+		frontmatter: {},
+	};
+	const settings: ConfluenceSettings = {
+		confluenceBaseUrl: "https://api.atlassian.com/ex/confluence/cloud-id",
+		confluenceSiteUrl: "https://site.example.atlassian.net",
+		confluenceParentId: "asdf",
+		authMethod: "oauth2",
+		atlassianUserName: "",
+		atlassianApiToken: "",
+		atlassianClientId: "client-id",
+		atlassianClientSecret: "client-secret",
+		folderToPublish: ".",
+		contentRoot: "./",
+		firstHeadingPageTitle: false,
+	};
+
+	const adfFile = convertMDtoADF(markdown, settings);
+	const serialized = JSON.stringify(adfFile.contents);
+
+	expect(serialized).toContain('"type":"inlineCard"');
+	// The trailing slug is stripped because the host matches confluenceSiteUrl.
+	expect(serialized).toContain("https://site.example.atlassian.net/wiki/spaces/TEAM/pages/12345");
+	expect(serialized).not.toContain("Some+Page+Title");
+});
+
+test("falls back to confluenceBaseUrl for link matching when confluenceSiteUrl is empty", () => {
+	const pageLink =
+		"https://site.example.atlassian.net/wiki/spaces/TEAM/pages/12345/Some+Page+Title";
+	const markdown: MarkdownFile = {
+		folderName: "links",
+		absoluteFilePath: "/path/to/links-fallback.md",
+		fileName: "links-fallback.md",
+		contents: pageLink,
+		pageTitle: "Links Fallback",
+		frontmatter: {},
+	};
+	const settings: ConfluenceSettings = {
+		confluenceBaseUrl: "https://site.example.atlassian.net",
+		confluenceSiteUrl: "",
+		confluenceParentId: "asdf",
+		authMethod: "basic",
+		atlassianUserName: "user@example.com",
+		atlassianApiToken: "token",
+		atlassianClientId: "",
+		atlassianClientSecret: "",
+		folderToPublish: ".",
+		contentRoot: "./",
+		firstHeadingPageTitle: false,
+	};
+
+	const adfFile = convertMDtoADF(markdown, settings);
+	const serialized = JSON.stringify(adfFile.contents);
+
+	expect(serialized).toContain('"type":"inlineCard"');
+	expect(serialized).not.toContain("Some+Page+Title");
 });

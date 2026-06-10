@@ -7,7 +7,12 @@ import {
 	RuntimeEnvironment,
 	RuntimeEnvironmentService,
 } from "./effects";
-import { ConfluenceSettings, ConfluenceSettingsService, DEFAULT_SETTINGS } from "./Settings";
+import {
+	ConfluenceAuthMethod,
+	ConfluenceSettings,
+	ConfluenceSettingsService,
+	DEFAULT_SETTINGS,
+} from "./Settings";
 
 const CONFLUENCE_SETTINGS_KEYS = Object.keys(DEFAULT_SETTINGS) as (keyof ConfluenceSettings)[];
 
@@ -21,9 +26,23 @@ type ArgumentValue = boolean | string | undefined;
 
 export const confluenceSettingsConfig = Config.all({
 	confluenceBaseUrl: Config.string("confluenceBaseUrl"),
+	confluenceSiteUrl: Config.string("confluenceSiteUrl").pipe(
+		Config.withDefault(DEFAULT_SETTINGS.confluenceSiteUrl),
+	),
 	confluenceParentId: Config.string("confluenceParentId"),
-	atlassianUserName: Config.string("atlassianUserName"),
-	atlassianApiToken: Config.string("atlassianApiToken"),
+	authMethod: Config.string("authMethod").pipe(Config.withDefault(DEFAULT_SETTINGS.authMethod)),
+	atlassianUserName: Config.string("atlassianUserName").pipe(
+		Config.withDefault(DEFAULT_SETTINGS.atlassianUserName),
+	),
+	atlassianApiToken: Config.string("atlassianApiToken").pipe(
+		Config.withDefault(DEFAULT_SETTINGS.atlassianApiToken),
+	),
+	atlassianClientId: Config.string("atlassianClientId").pipe(
+		Config.withDefault(DEFAULT_SETTINGS.atlassianClientId),
+	),
+	atlassianClientSecret: Config.string("atlassianClientSecret").pipe(
+		Config.withDefault(DEFAULT_SETTINGS.atlassianClientSecret),
+	),
 	folderToPublish: Config.string("folderToPublish"),
 	contentRoot: Config.string("contentRoot"),
 	firstHeadingPageTitle: Config.boolean("firstHeadingPageTitle"),
@@ -95,8 +114,12 @@ export function makeConfluenceSettingsConfigProvider(): Effect.Effect<
 	});
 }
 
+type ParsedConfluenceSettings = Omit<ConfluenceSettings, "authMethod"> & {
+	authMethod: string;
+};
+
 function validateConfluenceSettingsEffect(
-	settings: ConfluenceSettings,
+	settings: ParsedConfluenceSettings,
 ): Effect.Effect<ConfluenceSettings, Error, Path> {
 	return Effect.gen(function* () {
 		const path = yield* Path;
@@ -109,12 +132,40 @@ function validateConfluenceSettingsEffect(
 			return yield* Effect.fail(new Error("Confluence parent ID is required"));
 		}
 
-		if (!settings.atlassianUserName) {
-			return yield* Effect.fail(new Error("Atlassian user name is required"));
+		const authMethod = yield* validateAuthMethod(settings.authMethod);
+
+		if (authMethod === "oauth2") {
+			if (!settings.atlassianClientId) {
+				return yield* Effect.fail(
+					new Error("Atlassian client ID is required when authMethod is oauth2"),
+				);
+			}
+
+			if (!settings.atlassianClientSecret) {
+				return yield* Effect.fail(
+					new Error("Atlassian client secret is required when authMethod is oauth2"),
+				);
+			}
+		} else {
+			if (!settings.atlassianUserName) {
+				return yield* Effect.fail(
+					new Error("Atlassian user name is required when authMethod is basic"),
+				);
+			}
+
+			if (!settings.atlassianApiToken) {
+				return yield* Effect.fail(
+					new Error("Atlassian API token is required when authMethod is basic"),
+				);
+			}
 		}
 
-		if (!settings.atlassianApiToken) {
-			return yield* Effect.fail(new Error("Atlassian API token is required"));
+		if (isAtlassianApiGatewayUrl(settings.confluenceBaseUrl) && !settings.confluenceSiteUrl) {
+			return yield* Effect.fail(
+				new Error(
+					"Confluence site URL is required when confluenceBaseUrl points at the Atlassian API gateway",
+				),
+			);
 		}
 
 		if (!settings.folderToPublish) {
@@ -127,11 +178,37 @@ function validateConfluenceSettingsEffect(
 
 		return {
 			...settings,
+			authMethod,
 			contentRoot: settings.contentRoot.endsWith(path.sep)
 				? settings.contentRoot
 				: `${settings.contentRoot}${path.sep}`,
 		};
 	});
+}
+
+function validateAuthMethod(value: string): Effect.Effect<ConfluenceAuthMethod, Error> {
+	if (value === "basic" || value === "oauth2") {
+		return Effect.succeed(value);
+	}
+
+	return Effect.fail(
+		new Error(`Unsupported authMethod "${value}". Expected "basic" or "oauth2".`),
+	);
+}
+
+/**
+ * Detects the Atlassian API gateway base URL
+ * (https://api.atlassian.com/ex/confluence/{cloudId}). When the base URL points
+ * at the gateway, browser-facing links cannot be derived from it, so a separate
+ * `confluenceSiteUrl` must be supplied.
+ */
+function isAtlassianApiGatewayUrl(baseUrl: string): boolean {
+	try {
+		const url = new URL(baseUrl);
+		return url.hostname === "api.atlassian.com" && url.pathname.startsWith("/ex/confluence/");
+	} catch {
+		return false;
+	}
 }
 
 function getConfigPath(
@@ -185,9 +262,13 @@ function makeEnvironmentProvider(
 		return ConfigProvider.fromEnv({
 			env: compactRecord({
 				confluenceBaseUrl: yield* runtimeEnvironment.getEnv("CONFLUENCE_BASE_URL"),
+				confluenceSiteUrl: yield* runtimeEnvironment.getEnv("CONFLUENCE_SITE_URL"),
 				confluenceParentId: yield* runtimeEnvironment.getEnv("CONFLUENCE_PARENT_ID"),
+				authMethod: yield* runtimeEnvironment.getEnv("CONFLUENCE_AUTH_METHOD"),
 				atlassianUserName: yield* runtimeEnvironment.getEnv("ATLASSIAN_USERNAME"),
 				atlassianApiToken: yield* runtimeEnvironment.getEnv("ATLASSIAN_API_TOKEN"),
+				atlassianClientId: yield* runtimeEnvironment.getEnv("ATLASSIAN_CLIENT_ID"),
+				atlassianClientSecret: yield* runtimeEnvironment.getEnv("ATLASSIAN_CLIENT_SECRET"),
 				folderToPublish: yield* runtimeEnvironment.getEnv("FOLDER_TO_PUBLISH"),
 				contentRoot: yield* runtimeEnvironment.getEnv("CONFLUENCE_CONTENT_ROOT"),
 				firstHeadingPageTitle:
@@ -200,9 +281,13 @@ function makeEnvironmentProvider(
 function makeCommandLineProvider(argv: readonly string[]): ConfigProvider.ConfigProvider {
 	const options = parseArgumentValues(argv, [
 		{ name: "baseUrl", aliases: ["b"], type: "string" },
+		{ name: "siteUrl", type: "string" },
 		{ name: "parentId", aliases: ["p"], type: "string" },
+		{ name: "authMethod", type: "string" },
 		{ name: "userName", aliases: ["u"], type: "string" },
 		{ name: "apiToken", type: "string" },
+		{ name: "clientId", type: "string" },
+		{ name: "clientSecret", type: "string" },
 		{ name: "enableFolder", aliases: ["f"], type: "string" },
 		{ name: "contentRoot", aliases: ["cr"], type: "string" },
 		{ name: "firstHeaderPageTitle", aliases: ["fh"], type: "boolean" },
@@ -211,9 +296,13 @@ function makeCommandLineProvider(argv: readonly string[]): ConfigProvider.Config
 	return ConfigProvider.fromUnknown(
 		compactRecord({
 			confluenceBaseUrl: options["baseUrl"],
+			confluenceSiteUrl: options["siteUrl"],
 			confluenceParentId: options["parentId"],
+			authMethod: options["authMethod"],
 			atlassianUserName: options["userName"],
 			atlassianApiToken: options["apiToken"],
+			atlassianClientId: options["clientId"],
+			atlassianClientSecret: options["clientSecret"],
 			folderToPublish: options["enableFolder"],
 			contentRoot: options["contentRoot"],
 			firstHeadingPageTitle: options["firstHeaderPageTitle"],

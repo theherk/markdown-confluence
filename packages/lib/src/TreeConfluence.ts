@@ -14,7 +14,7 @@ import {
 	LocalAdfFile,
 	LocalAdfFileTreeNode,
 } from "./Publisher";
-import { ConfluenceSettings } from "./Settings";
+import { ConfluenceSettings, resolveSiteUrl } from "./Settings";
 
 const blankPageAdf: string = JSON.stringify(doc(p("Page not published yet")));
 
@@ -182,7 +182,7 @@ function createFileStructureInConfluenceEffect(
 			{ concurrency: "unbounded" },
 		);
 
-		const pageUrl = `${settings.confluenceBaseUrl}/wiki/spaces/${spaceKey}/pages/${file.pageId}/`;
+		const pageUrl = `${resolveSiteUrl(settings)}/wiki/spaces/${spaceKey}/pages/${file.pageId}/`;
 		return {
 			file: { ...file, pageUrl },
 			version,

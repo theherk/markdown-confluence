@@ -7,7 +7,7 @@ import { processConniePerPageConfig } from "./ConniePageConfig";
 import { p } from "@atlaskit/adf-utils/builders";
 import { MarkdownToConfluenceCodeBlockLanguageMap } from "./CodeBlockLanguageMap";
 import { isSafeUrl } from "@atlaskit/adf-schema";
-import { ConfluenceSettings } from "./Settings";
+import { ConfluenceSettings, resolveSiteUrl } from "./Settings";
 import { cleanUpUrlIfConfluence } from "./ConfluenceUrlParser";
 
 const frontmatterRegex = /^\s*?---\n([\s\S]*?)\n---\s*/g;
@@ -100,14 +100,14 @@ function countBacktickRun(line: string, position: number): number {
 	return count;
 }
 
-export function parseMarkdownToADF(markdown: string, confluenceBaseUrl: string) {
+export function parseMarkdownToADF(markdown: string, confluenceSiteUrl: string) {
 	const prosenodes = transformer.parse(stripMarkdownHtmlComments(markdown));
 	const adfNodes = serializer.encode(prosenodes);
-	const nodes = processADF(adfNodes, confluenceBaseUrl);
+	const nodes = processADF(adfNodes, confluenceSiteUrl);
 	return nodes;
 }
 
-function processADF(adf: JSONDocNode, confluenceBaseUrl: string): JSONDocNode {
+function processADF(adf: JSONDocNode, confluenceSiteUrl: string): JSONDocNode {
 	const olivia = traverse(adf, {
 		text: (node, _parent) => {
 			if (_parent.parent?.node?.type == "listItem" && node.text) {
@@ -141,7 +141,7 @@ function processADF(adf: JSONDocNode, confluenceBaseUrl: string): JSONDocNode {
 			if (node.marks[0].attrs["href"] === node.text) {
 				const cleanedUrl = cleanUpUrlIfConfluence(
 					node.marks[0].attrs["href"],
-					confluenceBaseUrl,
+					confluenceSiteUrl,
 				);
 				node.type = "inlineCard";
 				node.attrs = { url: cleanedUrl };
@@ -223,7 +223,7 @@ function processADF(adf: JSONDocNode, confluenceBaseUrl: string): JSONDocNode {
 export function convertMDtoADF(file: MarkdownFile, settings: ConfluenceSettings): LocalAdfFile {
 	file.contents = file.contents.replace(frontmatterRegex, "");
 
-	const adfContent = parseMarkdownToADF(file.contents, settings.confluenceBaseUrl);
+	const adfContent = parseMarkdownToADF(file.contents, resolveSiteUrl(settings));
 
 	const results = processConniePerPageConfig(file, settings, adfContent);
 

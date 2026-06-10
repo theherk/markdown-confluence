@@ -12,6 +12,7 @@ import {
 	Publisher,
 	MermaidRendererPlugin,
 	RuntimeEnvironmentService,
+	fetchOAuthAccessToken,
 } from "@markdown-confluence/lib";
 import { PuppeteerMermaidRenderer } from "@markdown-confluence/mermaid-puppeteer-renderer";
 import { ConfluenceClient } from "confluence.js";
@@ -22,14 +23,11 @@ const program = Effect.gen(function* () {
 
 	const settings = yield* ConfluenceUploadSettings.ConfluenceSettingsService as any;
 
+	const authentication = yield* resolveAuthentication(settings);
+
 	const confluenceClient = new ConfluenceClient({
 		host: settings.confluenceBaseUrl,
-		authentication: {
-			basic: {
-				email: settings.atlassianUserName,
-				apiToken: settings.atlassianApiToken,
-			},
-		},
+		authentication,
 		middlewares: {
 			onError(e) {
 				if ("response" in e && "data" in e.response) {
@@ -85,4 +83,25 @@ NodeRuntime.runMain(
 
 function getErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : JSON.stringify(error);
+}
+
+type ConfluenceClientConfig = ConstructorParameters<typeof ConfluenceClient>[0];
+type ConfluenceAuthentication = ConfluenceClientConfig["authentication"];
+
+function resolveAuthentication(
+	settings: ConfluenceUploadSettings.ConfluenceSettings,
+): Effect.Effect<ConfluenceAuthentication, Error> {
+	if (settings.authMethod === "oauth2") {
+		return fetchOAuthAccessToken(
+			settings.atlassianClientId,
+			settings.atlassianClientSecret,
+		).pipe(Effect.map((accessToken) => ({ oauth2: { accessToken } })));
+	}
+
+	return Effect.succeed({
+		basic: {
+			email: settings.atlassianUserName,
+			apiToken: settings.atlassianApiToken,
+		},
+	});
 }

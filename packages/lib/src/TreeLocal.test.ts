@@ -76,9 +76,13 @@ function createMarkdownFile(filesystemPath: Path, absoluteFilePath: string): Mar
 
 const testSettings: ConfluenceSettings = {
 	confluenceBaseUrl: "https://example.atlassian.net",
+	confluenceSiteUrl: "",
 	confluenceParentId: "123456",
+	authMethod: "basic",
 	atlassianUserName: "user@example.com",
 	atlassianApiToken: "token",
+	atlassianClientId: "",
+	atlassianClientSecret: "",
 	folderToPublish: ".",
 	contentRoot: ".",
 	firstHeadingPageTitle: false,
