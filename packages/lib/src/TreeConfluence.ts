@@ -182,7 +182,7 @@ function createFileStructureInConfluenceEffect(
 			{ concurrency: "unbounded" },
 		);
 
-		const pageUrl = `${resolveSiteUrl(settings)}/wiki/spaces/${spaceKey}/pages/${file.pageId}/`;
+		const pageUrl = `${resolveSiteUrl(settings)}/wiki/spaces/${file.spaceKey}/pages/${file.pageId}/`;
 		return {
 			file: { ...file, pageUrl },
 			version,
