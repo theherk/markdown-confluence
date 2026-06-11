@@ -10,6 +10,12 @@ export const ATLASSIAN_OAUTH_TOKEN_URL = "https://auth.atlassian.com/oauth/token
  */
 export const ATLASSIAN_OAUTH_AUDIENCE = "api.atlassian.com";
 
+/**
+ * Maximum time to wait for the Atlassian OAuth token endpoint before aborting,
+ * so a stalled network path can't hang CLI startup indefinitely.
+ */
+const ATLASSIAN_OAUTH_TIMEOUT_MS = 15_000;
+
 type OAuthTokenResponse = {
 	access_token?: unknown;
 };
@@ -36,6 +42,7 @@ export function fetchOAuthAccessToken(
 				fetch(ATLASSIAN_OAUTH_TOKEN_URL, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
+					signal: AbortSignal.timeout(ATLASSIAN_OAUTH_TIMEOUT_MS),
 					body: JSON.stringify({
 						grant_type: "client_credentials",
 						client_id: clientId,

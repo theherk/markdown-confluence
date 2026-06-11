@@ -26,6 +26,7 @@ test("returns the access token on a successful response", async () => {
 	const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
 	expect(url).toBe(ATLASSIAN_OAUTH_TOKEN_URL);
 	expect(init.method).toBe("POST");
+	expect(init.signal).toBeInstanceOf(AbortSignal);
 	const body = JSON.parse(String(init.body));
 	expect(body).toMatchObject({
 		grant_type: "client_credentials",
