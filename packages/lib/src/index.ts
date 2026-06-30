@@ -34,6 +34,7 @@ import {
 	type MarkdownWorkspace,
 } from "./MarkdownWorkspace";
 import { convertMDtoADF, parseMarkdownToADF, stripMarkdownHtmlComments } from "./MdToADF";
+import { ConfluenceV2Client, ConfluenceV2Error } from "./ConfluenceV2Client";
 import {
 	ATLASSIAN_OAUTH_AUDIENCE,
 	ATLASSIAN_OAUTH_TOKEN_URL,
@@ -64,6 +65,8 @@ export {
 	ConfluencePageConfig,
 	ConfluenceSettingsLive,
 	ConfluenceUploadSettings,
+	ConfluenceV2Client,
+	ConfluenceV2Error,
 	MarkdownConfluencePlatformLive,
 	MarkdownConfluenceRuntime,
 	MarkdownWorkspaceLive,
