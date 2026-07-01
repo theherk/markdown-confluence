@@ -266,7 +266,7 @@ export class ConfluenceV2Client {
 			);
 		}
 		const spaceId = await this.spaces.resolveKeyToId(spaceKey);
-		const parentId = parameters?.ancestors?.[0]?.id;
+		const parentId = parameters?.ancestors?.at(-1)?.id;
 
 		const requestBody: V2CreatePageBody = {
 			spaceId,
@@ -297,7 +297,7 @@ export class ConfluenceV2Client {
 	): Promise<T> {
 		void callback;
 
-		const parentId = parameters.ancestors?.[0]?.id;
+		const parentId = parameters.ancestors?.at(-1)?.id;
 		const requestBody: V2UpdatePageBody = {
 			id: parameters.id,
 			status: "current",
