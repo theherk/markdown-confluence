@@ -14,6 +14,7 @@ export type ConfluenceSettings = {
 	folderToPublish: string;
 	contentRoot: string;
 	firstHeadingPageTitle: boolean;
+	forcePublish: boolean;
 };
 
 export const DEFAULT_SETTINGS: ConfluenceSettings = {
@@ -28,6 +29,7 @@ export const DEFAULT_SETTINGS: ConfluenceSettings = {
 	folderToPublish: "Confluence Pages",
 	contentRoot: ".",
 	firstHeadingPageTitle: false,
+	forcePublish: false,
 };
 
 /**

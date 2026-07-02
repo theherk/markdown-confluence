@@ -95,6 +95,7 @@ test("loads settings from Effect ConfigProviders with CLI, env, file, default pr
 		folderToPublish: "env-folder",
 		contentRoot: expectedCliContentRoot,
 		firstHeadingPageTitle: true,
+		forcePublish: false,
 	});
 });
 

@@ -46,6 +46,9 @@ export const confluenceSettingsConfig = Config.all({
 	folderToPublish: Config.string("folderToPublish"),
 	contentRoot: Config.string("contentRoot"),
 	firstHeadingPageTitle: Config.boolean("firstHeadingPageTitle"),
+	forcePublish: Config.boolean("forcePublish").pipe(
+		Config.withDefault(DEFAULT_SETTINGS.forcePublish),
+	),
 });
 
 export const ConfluenceSettingsLive: Layer.Layer<
@@ -258,6 +261,7 @@ function makeEnvironmentProvider(
 		const firstHeadingPageTitle = yield* runtimeEnvironment.getEnv(
 			"CONFLUENCE_FIRST_HEADING_PAGE_TITLE",
 		);
+		const forcePublish = yield* runtimeEnvironment.getEnv("CONFLUENCE_FORCE_PUBLISH");
 
 		return ConfigProvider.fromEnv({
 			env: compactRecord({
@@ -273,6 +277,7 @@ function makeEnvironmentProvider(
 				contentRoot: yield* runtimeEnvironment.getEnv("CONFLUENCE_CONTENT_ROOT"),
 				firstHeadingPageTitle:
 					firstHeadingPageTitle === "true" ? firstHeadingPageTitle : undefined,
+				forcePublish: forcePublish === "true" ? forcePublish : undefined,
 			}),
 		});
 	});
@@ -291,6 +296,7 @@ function makeCommandLineProvider(argv: readonly string[]): ConfigProvider.Config
 		{ name: "enableFolder", aliases: ["f"], type: "string" },
 		{ name: "contentRoot", aliases: ["cr"], type: "string" },
 		{ name: "firstHeaderPageTitle", aliases: ["fh"], type: "boolean" },
+		{ name: "forcePublish", type: "boolean" },
 	]);
 
 	return ConfigProvider.fromUnknown(
@@ -306,6 +312,7 @@ function makeCommandLineProvider(argv: readonly string[]): ConfigProvider.Config
 			folderToPublish: options["enableFolder"],
 			contentRoot: options["contentRoot"],
 			firstHeadingPageTitle: options["firstHeaderPageTitle"],
+			forcePublish: options["forcePublish"],
 		}),
 	);
 }
