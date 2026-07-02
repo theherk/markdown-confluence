@@ -16,6 +16,9 @@ import type {
  */
 const ATLAS_DOC_FORMAT = "atlas_doc_format";
 
+/** Maximum time to wait for each Confluence v2 API request. */
+const CONFLUENCE_V2_TIMEOUT_MS = 15_000;
+
 /**
  * Error thrown when a v2 request fails. Mirrors the shape that `confluence.js`
  * surfaces (a `message` plus a `response.data` payload) so that the publisher's
@@ -114,6 +117,7 @@ async function requestV2<T>(
 				Accept: "application/json",
 				...(body === undefined ? {} : { "Content-Type": "application/json" }),
 			},
+			signal: AbortSignal.timeout(CONFLUENCE_V2_TIMEOUT_MS),
 			...(body === undefined ? {} : { body: JSON.stringify(body) }),
 		});
 	} catch (error) {
@@ -296,6 +300,7 @@ export class ConfluenceV2Client {
 		callback?: never,
 	): Promise<T> {
 		void callback;
+		assertNotBlogpost(parameters.type);
 
 		const parentId = parameters.ancestors?.at(-1)?.id;
 		const requestBody: V2UpdatePageBody = {

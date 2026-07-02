@@ -63,7 +63,7 @@ test("derives upload buffer content type from the filename", async () => {
 test("extracts SVG dimensions when image-size cannot detect them", async () => {
 	const uploadRequests: unknown[] = [];
 	const svgBytes = Buffer.from(
-		'<svg xmlns="http://www.w3.org/2000/svg" width="1911px" height="1391px" viewBox="0 0 1911 1391"></svg>',
+		'<?xml version="1.0"?><!----><svg xmlns="http://www.w3.org/2000/svg" width="1911px" height="1391px" viewBox="0 0 1911 1391"></svg>',
 	);
 	const workspace = new TestMarkdownWorkspace((searchPath) =>
 		searchPath === "diagram.svg"

@@ -232,17 +232,19 @@ function getImageSize(buffer: Buffer): { width?: number; height?: number } {
 
 function getSvgImageSize(buffer: Buffer): { width?: number; height?: number } | undefined {
 	const svg = buffer.toString("utf-8", 0, Math.min(buffer.length, 4096));
-	if (!svg.trimStart().startsWith("<svg")) {
+	const svgTagStart = svg.indexOf("<svg");
+	if (svgTagStart === -1) {
 		return undefined;
 	}
+	const svgTag = svg.slice(svgTagStart);
 
-	const width = parseSvgLength(svg.match(/\swidth="([^"]+)"/)?.[1]);
-	const height = parseSvgLength(svg.match(/\sheight="([^"]+)"/)?.[1]);
+	const width = parseSvgLength(svgTag.match(/\swidth="([^"]+)"/)?.[1]);
+	const height = parseSvgLength(svgTag.match(/\sheight="([^"]+)"/)?.[1]);
 	if (width && height) {
 		return { width, height };
 	}
 
-	const viewBox = svg.match(/\sviewBox="([^"]+)"/)?.[1];
+	const viewBox = svgTag.match(/\sviewBox="([^"]+)"/)?.[1];
 	if (viewBox) {
 		const [, , viewBoxWidth, viewBoxHeight] = viewBox
 			.trim()
