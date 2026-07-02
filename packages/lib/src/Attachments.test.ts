@@ -60,6 +60,37 @@ test("derives upload buffer content type from the filename", async () => {
 	expect(getUploadedAttachment(uploadRequests).contentType).toBe("text/plain");
 });
 
+test("extracts SVG dimensions when image-size cannot detect them", async () => {
+	const uploadRequests: unknown[] = [];
+	const svgBytes = Buffer.from(
+		'<svg xmlns="http://www.w3.org/2000/svg" width="1911px" height="1391px" viewBox="0 0 1911 1391"></svg>',
+	);
+	const workspace = new TestMarkdownWorkspace((searchPath) =>
+		searchPath === "diagram.svg"
+			? {
+					filename: "diagram.svg",
+					filePath: "img/diagram.svg",
+					mimeType: "image/svg+xml",
+					contents: svgBytes,
+				}
+			: false,
+	);
+
+	const result = await Effect.runPromise(
+		uploadFileEffect(
+			makeConfluenceClient(uploadRequests),
+			"page-id",
+			"page.md",
+			"diagram.svg",
+			{},
+		).pipe(Effect.provideService(MarkdownWorkspaceService, workspace)),
+	);
+
+	expect(result?.width).toBe(1911);
+	expect(result?.height).toBe(1391);
+	expect(getUploadedAttachment(uploadRequests).contentType).toBe("image/svg+xml");
+});
+
 class TestMarkdownWorkspace implements MarkdownWorkspace {
 	readonly getMarkdownFilesToUpload: Effect.Effect<FilesToUpload, Error> = Effect.succeed([]);
 
